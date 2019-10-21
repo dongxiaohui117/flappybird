@@ -2,18 +2,27 @@
 
 import { ResourceLoader } from "./js/base/ResourceLoader.js";
 import { DataStore } from "./js/base/DataStore.js";
+import { Background } from "./js/runtime/Background.js";
+import { Land } from "./js/runtime/Land.js";
+import { Director } from "./js/Director.js";
+import { Birds } from "./js/player/Birds.js";
+// import { UpPipe } from "./js/runtime/UpPipe.js";
 
 
 export class Main{
     constructor(){
         console.log('游戏开始');
         //初始化画布
-        this.canvas=document.getElementById('game');
+        // this.canvas=document.getElementById('game');
+        this.canvas=wx.createCanvas();
         this.ctx=this.canvas.getContext('2d');
         //初始化资源加载器
         this.loader=new ResourceLoader();
         //初始化变量池
         this.datastore=DataStore.getInstance();
+
+        //初始化导演
+        this.director=Director.getInstance();
 
         //加载完成后,执行其他的操作
         this.loader.onloaded(map=>this.onResourceLoaded(map));
@@ -32,10 +41,23 @@ export class Main{
         this.datastore.res=map;
 
         this.init();
+
      
     }
-    //游戏初始化
+    //游戏初始化,初始化游戏中的数据,将其保存到变量池中
     init(){
+        //模拟画背景图
+        // new Background().draw();
+        // new Land().draw();
+        this.datastore.set('background',new Background())
+                                    .set('land',new Land())
+                                    .set('pipes',[])
+                                    .set('birds',new Birds())
+        
+        //先创建一组水管
+        this.director.createPipes();
+        //开始运行
+        this.director.run();
 
     }
 }

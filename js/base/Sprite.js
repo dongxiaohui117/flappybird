@@ -22,12 +22,9 @@ export class Sprite{
     draw(img=this.img,srcX=this.srcX,srcY=this.srcY,srcW=this.srcW,srcH=this.srcH,x=this.x,y=this.y,width=this.width,height=this.height){
         this.ctx.drawImage(img,srcX,srcY,srcW,srcH,x,y,width,height);
     }
-
+    
     //获取指定图片
     static getImage(key){
         return DataStore.getInstance().res.get(key);
     }
-       
-
-    
 }
