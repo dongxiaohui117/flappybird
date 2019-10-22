@@ -1,6 +1,7 @@
 import { DataStore } from "./base/DataStore.js";
 import { UpPipe } from "./runtime/UpPipe.js";
 import { DownPipe } from "./runtime/DownPipe.js";
+// import { Score } from "./player/Score.js";
 
 //导演类,控制游戏的主流程,逻辑
 
@@ -17,6 +18,76 @@ export class Director{
         return Director.instance;
     }
 
+    //判断小鸟与某一个水管是否碰撞(小鸟的模型,某个水管的模型)
+    isStrike(bird,pipe){
+        let strike=true;//假设撞上了
+        if(bird.right<pipe.left //小鸟的右边小于水管的左边
+            ||bird.bottom<pipe.top //小鸟的下边小于水管的上边
+            ||bird.left>pipe.right //小鸟的左边大于水管的右边
+            ||bird.top>pipe.bottom //小鸟的上边大于水管的下边
+            ){
+            //没撞上
+            strike=false;
+        }
+        return strike;
+    }
+
+    //判断小鸟的撞击事件(天,地,水管)
+    check(){
+        const birds=this.datastore.get('birds');
+        const land=this.datastore.get('land');
+        const pipes=this.datastore.get('pipes');
+        const score=this.datastore.get('score');
+
+        //与天地相撞
+        if(birds.birdsY[0]<0||birds.birdsHeight[0]+birds.birdsY[0]>land.y){
+            //游戏结束
+            this.isGameOver=true;
+            return;
+        }
+        //判断与水管相撞
+        //构建小鸟模型数据
+        const birdBorder={
+            top:birds.birdsY[0],
+            right:birds.birdsX[0]+birds.birdsWidth[0],
+            bottom:birds.birdsY[0]+birds.birdsHeight[0],
+            left:birds.birdsX[0]
+        }
+        //循环水管,遍历构建每一个水管的模型数据
+        for(let i=0;i<pipes.length;i++){
+            const pipe=pipes[i];
+            const pipeBorder={
+                top:pipe.y,
+                right:pipe.x+pipe.width,
+                bottom:pipe.y+pipe.height,
+                left:pipe.x
+            }
+            //判断小鸟是否与水管撞击
+            if(this.isStrike(birdBorder,pipeBorder)){
+                //撞了
+                this.isGameOver=true;
+                return ;
+            }
+        }
+        //小鸟越过水管,当前可以加分状态 加分
+        //越过第一组水管,所以只需要判断小鸟与第一组水管的位置关系
+        if(birds.birdsX[0]>pipes[0].x+pipes[0].width && score.canAdd){
+            score.score++;
+            //改变加分状态为不可加分
+            score.canAdd=false;
+        }
+        
+    }
+
+    //点击屏幕,小鸟向上飞
+    birdsUp(){
+        const birds=this.datastore.get('birds');//获取变量池中的小鸟变量
+        for(let i=0;i<3;i++){
+            birds.y[i]=birds.birdsY[i];
+        }
+        birds.time=0;
+    }
+
     //创建水管
     createPipes(){
         const minTop=this.datastore.canvas.height/8;//最小值
@@ -28,34 +99,50 @@ export class Director{
     }
     //运行
     run(){
-        //画背景图
-        this.datastore.get('background').draw();
-       
-        //获取水管数组
-        const pipes=this.datastore.get('pipes');
-        // this.createPipes();//调用创建水管的方法
-        //创建水管之前先判断
-        //有没有出界,出界了就从数组中删除
-        if(pipes[0].x<-pipes[0].width && pipes.length==4){
-            pipes.shift();
-            pipes.shift();
-        }
-        //创建水管:前面一组水管有没有越过屏幕中央,如果越过,开始创建下一个水管
-        const CanvasWidth=this.datastore.canvas.width;
-        if(pipes[0].x<(CanvasWidth/2-pipes[0].width)/2 && pipes.length==2){
-            this.createPipes();
-        }
+        //检查游戏是否结束
+        this.check();
+        if(!this.isGameOver){
+            //游戏未结束
+            //画背景图
+            this.datastore.get('background').draw();
+                
+            //获取水管数组
+            const pipes=this.datastore.get('pipes');
+            // this.createPipes();//调用创建水管的方法
+            //创建水管之前先判断
+            //有没有出界,出界了就从数组中删除
+            if(pipes[0].x<-pipes[0].width && pipes.length==4){
+                pipes.shift();
+                pipes.shift();
+                //修改加分状态为true
+                this.datastore.get('score').canAdd=true;
+            }
+            //创建水管:前面一组水管有没有越过屏幕中央,如果越过,开始创建下一个水管
+            const CanvasWidth=this.datastore.canvas.width;
+            if(pipes[0].x<(CanvasWidth/2-pipes[0].width)/2 && pipes.length==2){
+                this.createPipes();
+            }
 
-        //遍历数组,画水管
-        pipes.forEach(pipe=>{
-            pipe.draw();
-        });
-        //获取小鸟,并画出来
-        this.datastore.get('birds').draw();
-        //画地板图
-        this.datastore.get('land').draw();
-        
-        //循环运行
-        requestAnimationFrame(()=>this.run());
+            //遍历数组,画水管
+            pipes.forEach(pipe=>{
+                pipe.draw();
+            });
+            //获取小鸟,并画出来
+            this.datastore.get('birds').draw();
+            //画地板图
+            this.datastore.get('land').draw();
+            //画分数
+            this.datastore.get('score').draw();
+            
+            //循环运行
+            requestAnimationFrame(()=>this.run());
+        }else{
+            //游戏结束,停止渲染
+            cancelAnimationFrame(this.id);
+            //画结束按钮
+            this.datastore.get('startButton').draw();
+            //销毁数据
+            this.datastore.destroy();
+        }
     }
 }
